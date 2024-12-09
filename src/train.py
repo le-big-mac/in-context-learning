@@ -134,6 +134,7 @@ def train(model, args):
                     ),
                     "n_points": curriculum.n_points,
                     "n_dims": curriculum.n_dims_truncated,
+                    "num_samples": i * bsize,
                 },
                 step=i,
             )
