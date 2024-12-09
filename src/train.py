@@ -2,6 +2,7 @@ import os
 from random import randint
 import uuid
 
+import numpy as np
 from quinine import QuinineArgumentParser
 from tqdm import tqdm
 import torch
@@ -17,6 +18,7 @@ from models import build_model
 import wandb
 
 torch.backends.cudnn.benchmark = True
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def train_step(model, xs, ys, optimizer, loss_func):
@@ -33,6 +35,11 @@ def sample_seeds(total_seeds, count):
     while len(seeds) < count:
         seeds.add(randint(0, total_seeds - 1))
     return seeds
+
+
+def sequential_seeds(batch_idx, count, total_seeds):
+    base_idx = (batch_idx * count) % total_seeds
+    return [(base_idx + i) % total_seeds for i in range(count)]
 
 
 def train(model, args):
@@ -62,6 +69,7 @@ def train(model, args):
     pbar = tqdm(range(starting_step, args.training.train_steps))
 
     num_training_examples = args.training.num_training_examples
+    with_replacement = args.training.with_replacement
 
     for i in pbar:
         data_sampler_args = {}
@@ -71,7 +79,10 @@ def train(model, args):
             task_sampler_args["valid_coords"] = curriculum.n_dims_truncated
         if num_training_examples is not None:
             assert num_training_examples >= bsize
-            seeds = sample_seeds(num_training_examples, bsize)
+            if with_replacement:
+                seeds = sample_seeds(num_training_examples, bsize)
+            else:
+                seeds = sequential_seeds(i, bsize, num_training_examples)
             data_sampler_args["seeds"] = seeds
             task_sampler_args["seeds"] = [s + 1 for s in seeds]
 
@@ -86,11 +97,11 @@ def train(model, args):
 
         loss_func = task.get_training_metric()
 
-        loss, output = train_step(model, xs.cuda(), ys.cuda(), optimizer, loss_func)
+        loss, output = train_step(model, xs.to(device), ys.to(device), optimizer, loss_func)
 
         point_wise_tags = list(range(curriculum.n_points))
         point_wise_loss_func = task.get_metric()
-        point_wise_loss = point_wise_loss_func(output, ys.cuda()).mean(dim=0)
+        point_wise_loss = point_wise_loss_func(output, ys.to(device)).mean(dim=0)
 
         baseline_loss = (
             sum(
@@ -152,14 +163,43 @@ def main(args):
         )
 
     model = build_model(args.model)
-    model.cuda()
+    model.to(device)
     model.train()
 
     train(model, args)
 
     if not args.test_run:
-        _ = get_run_metrics(args.out_dir)  # precompute metrics for eval
+        eval_metrics = get_run_metrics(args.out_dir, skip_baselines=True)  # precompute metrics for eval
 
+    if args.wandb:
+        eval_metrics = eval_metrics["standard"]
+        eval_models = list(eval_metrics.keys())
+        plot_y = []
+
+        val_acc = eval_metrics[model.name]["mean"]
+        mean_val_acc = np.mean(val_acc)
+
+        wandb.log(
+            {
+                "mean_val_acc": mean_val_acc,
+            },
+        )
+
+        for model_name in eval_models:
+            plot_y.append(eval_metrics[model_name]["mean"])
+        plot_x = list(range(len(plot_y[0])))
+
+        wandb.log(
+            {
+                "eval/mean_acc": wandb.plot.line_series(
+                    plot_x,
+                    plot_y,
+                    keys=eval_models,
+                    title="Accuracy of Different Models",
+                    xname="Incontext Examples",
+                )
+            }
+        )
 
 if __name__ == "__main__":
     parser = QuinineArgumentParser(schema=schema)

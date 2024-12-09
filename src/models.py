@@ -314,6 +314,7 @@ class GDModel:
         self.batch_size = batch_size
         self.num_steps = num_steps
         self.loss_name = loss_name
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.name = f"gd_model_class={model_class}_model_class_args={model_class_args}_opt_alg={opt_alg}_lr={lr}_batch_size={batch_size}_num_steps={num_steps}_loss_name={loss_name}"
 
@@ -322,7 +323,7 @@ class GDModel:
         # prediction made at all indices by default.
         # xs: bsize X npoints X ndim.
         # ys: bsize X npoints.
-        xs, ys = xs.cuda(), ys.cuda()
+        xs, ys = xs.to(self.device), ys.to(self.device)
 
         if inds is None:
             inds = range(ys.shape[1])
@@ -338,7 +339,7 @@ class GDModel:
             model = ParallelNetworks(
                 ys.shape[0], self.model_class, **self.model_class_args
             )
-            model.cuda()
+            model.to(self.device)
             if i > 0:
                 pred = torch.zeros_like(ys[:, 0])
 
