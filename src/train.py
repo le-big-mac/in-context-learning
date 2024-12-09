@@ -66,6 +66,13 @@ def train(model, args):
         num_tasks=args.training.num_tasks,
         **args.training.task_kwargs,
     )
+    task_sampler_test = get_task_sampler(
+        args.training.task,
+        n_dims,
+        100,
+        num_tasks=args.training.num_tasks,
+        **args.training.task_kwargs,
+    )
     pbar = tqdm(range(starting_step, args.training.train_steps))
 
     num_training_examples = args.training.num_training_examples
@@ -113,14 +120,15 @@ def train(model, args):
         )
 
         with torch.no_grad():
-            xs = data_sampler.sample_xs(
+            xs_test = data_sampler.sample_xs(
                 curriculum.n_points,
                 100,
                 curriculum.n_dims_truncated,
             )
-            ys = task.evaluate(xs)
-            output = model(xs.to(device), ys.to(device))
-            test_metric = point_wise_loss_func(output, ys.to(device)).mean().cpu().item()
+            task = task_sampler_test()
+            ys_test = task.evaluate(xs_test)
+            output_test = model(xs_test.to(device), ys_test.to(device))
+            test_metric = point_wise_loss_func(output_test, ys_test.to(device)).mean().cpu().item()
 
         if i % args.wandb.log_every_steps == 0 and not args.test_run:
             wandb.log(
