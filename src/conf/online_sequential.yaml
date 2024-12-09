@@ -29,7 +29,7 @@ training:
             interval: 2000
     task: linear_classification
 
-out_dir: ../models/online_replace
+out_dir: ../models/online_sequential
 
 wandb:
-    name: "online_replace_classification"
+    name: "online_sequential_classification"
