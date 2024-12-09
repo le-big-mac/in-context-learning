@@ -102,6 +102,7 @@ def train(model, args):
         point_wise_tags = list(range(curriculum.n_points))
         point_wise_loss_func = task.get_metric()
         point_wise_loss = point_wise_loss_func(output, ys.to(device)).mean(dim=0)
+        point_wise_average = point_wise_loss.mean().cpu().item()
 
         baseline_loss = (
             sum(
@@ -116,6 +117,7 @@ def train(model, args):
                 {
                     "overall_loss": loss,
                     "excess_loss": loss / baseline_loss,
+                    "accuracy": point_wise_average,
                     "pointwise/loss": dict(
                         zip(point_wise_tags, point_wise_loss.cpu().numpy())
                     ),
