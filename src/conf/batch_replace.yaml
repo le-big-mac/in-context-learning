@@ -3,7 +3,7 @@ inherit:
     - wandb.yaml
 
 model:
-    n_dims: 20
+    n_dims: 12
     n_positions: 101
 
 training:
@@ -18,8 +18,8 @@ training:
     with_replacement: True
     curriculum:
         dims:
-            start: 20
-            end: 20
+            start: 12
+            end: 12
             inc: 0
             interval: 2000
         points:
