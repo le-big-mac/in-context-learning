@@ -14,7 +14,7 @@ training:
     save_every_steps: 1000
     keep_every_steps: 100000
     train_steps: 200001
-    num_training_examples: 100000
+    num_training_examples: 10000
     with_replacement: True
     curriculum:
         dims:
