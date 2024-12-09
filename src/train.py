@@ -112,12 +112,23 @@ def train(model, args):
             / curriculum.n_points
         )
 
+        with torch.no_grad():
+            xs = data_sampler.sample_xs(
+                curriculum.n_points,
+                100,
+                curriculum.n_dims_truncated,
+            )
+            ys = task.evaluate(xs)
+            output = model(xs.to(device), ys.to(device))
+            test_metric = point_wise_loss_func(output, ys.to(device)).mean().cpu().item()
+
         if i % args.wandb.log_every_steps == 0 and not args.test_run:
             wandb.log(
                 {
                     "overall_loss": loss,
                     "excess_loss": loss / baseline_loss,
-                    "accuracy": point_wise_average,
+                    "metric/train": point_wise_average,
+                    "metric/test": test_metric,
                     "pointwise/loss": dict(
                         zip(point_wise_tags, point_wise_loss.cpu().numpy())
                     ),
