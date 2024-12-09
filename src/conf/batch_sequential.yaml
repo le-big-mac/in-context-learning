@@ -27,9 +27,9 @@ training:
             end: 41
             inc: 0
             interval: 2000
-    task: linear_regression
+    task: linear_classification
 
 out_dir: ../models/batch_sequential
 
 wandb:
-    name: "batch_sequential"
+    name: "batch_sequential_classification"
